@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/nlopes/slack"
@@ -27,13 +28,21 @@ func run(slackClient *slack.Client) int {
 		log.Println("FLUSHALL: ", reply)
 	}
 
-	// 一定周期でスクレイピングをする
-	ginzaTravelInfo := make(chan GinzaTravelInfo)
-	go fetchGinzaTravelInfo(ginzaTravelInfo)
+	// リテラルなデータ([]RailwayLine)をsomeTravelInfo([]MetroTravelInfo)にセットする
+	var someTravelInfo []MetroTravelInfo
+	metroData := makeMetroData()
+	for _, railwayLine := range metroData {
+		travelInfo := MetroTravelInfo{
+			railwayLine: railwayLine,
+		}
+		someTravelInfo = append(someTravelInfo, travelInfo)
+	}
+	duration := 5 * time.Second
+	metroCh := collectMetroTravelInfo(someTravelInfo, duration)
 
 	for {
 		select {
-		case latestStatus := <-ginzaTravelInfo:
+		case latestStatus := <-metroCh:
 			s, err := redis.String(c.Do("GET", latestStatus.dateTime))
 			// 最新の運行情報が既に保存済みか
 			if err == nil {
@@ -51,7 +60,7 @@ func run(slackClient *slack.Client) int {
 
 			// joinしているchannel全てにmessageを送る
 			msg := latestStatus.dateTime + " : " + latestStatus.content
-			err = postMessageToAll(slackClient, "銀座線の運行情報", msg, "#FF932E")
+			err = postMessageToAll(slackClient, latestStatus.railwayLine.name+"の運行情報", msg, latestStatus.railwayLine.colorCode)
 			if err != nil {
 				log.Println("Error in posting message to slack: ", err)
 			}
