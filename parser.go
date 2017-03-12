@@ -1,19 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/PuerkitoBio/goquery"
 
-	"io/ioutil"
+	"strings"
 	"time"
 )
 
-func fetchGinzaTravelInfo(ch chan map[string]string) {
+// GinzaTravelInfo は銀座線の運行情報を表す
+type GinzaTravelInfo struct {
+	dateTime string
+	content  string
+}
+
+func fetchGinzaTravelInfo(ch chan GinzaTravelInfo) {
 	// http.Request の生成
-	url := "http://www.tokyometro.jp/unkou/history/ginza.html"
+	const url = "http://www.tokyometro.jp/unkou/history/ginza.html"
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Fatalln(err)
@@ -21,7 +26,7 @@ func fetchGinzaTravelInfo(ch chan map[string]string) {
 	client := &http.Client{}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36")
 
-	//  行くぞーーー！！！
+	// 行くぞーーー！！！
 	for {
 		time.Sleep(5 * time.Second)
 
@@ -34,21 +39,13 @@ func fetchGinzaTravelInfo(ch chan map[string]string) {
 			log.Fatalln(err)
 		}
 
-		// bodyの確認
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		fmt.Printf("body: " + string(body) + "\n")
-
 		// goqueryでがんばる
 		doc, err := goquery.NewDocument(url)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		// 偏差値の低い型 map[string]string
-		var travelInfos []map[string]string
+		var travelInfo []GinzaTravelInfo
 		doc.Find("tr").Each(func(i int, s *goquery.Selection) {
 			// 日付時刻
 			th := s.Find("th").Text()
@@ -56,13 +53,17 @@ func fetchGinzaTravelInfo(ch chan map[string]string) {
 			td := s.Find("td").Text()
 
 			if th != "" && td != "" {
-				travelInfos = append(travelInfos, map[string]string{th: td})
+				travelInfo = append(travelInfo, GinzaTravelInfo{dateTime: th, content: td})
 			}
 		})
 
 		//  最新の情報をチャネルで送る
-		if len(travelInfos) > 0 {
-			ch <- travelInfos[0]
+		if len(travelInfo) > 0 {
+			latest := travelInfo[0]
+			latest.dateTime = strings.TrimSpace(latest.dateTime)
+			latest.content = strings.TrimSpace(latest.content)
+			log.Printf("Latest info from a website: %s %s\n", latest.dateTime, latest.content)
+			ch <- latest
 		}
 
 	}
