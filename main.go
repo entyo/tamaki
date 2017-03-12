@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"strings"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/nlopes/slack"
 )
@@ -37,11 +39,38 @@ func run(slackClient *slack.Client) int {
 		}
 		someTravelInfo = append(someTravelInfo, travelInfo)
 	}
+	// 5秒毎にスクレイピングする
 	duration := 5 * time.Second
 	metroCh := collectMetroTravelInfo(someTravelInfo, duration)
 
+	// Real Time Messaging APIとの接続をgoroutineで持っとく
+	rtm := slackClient.NewRTM()
+	go rtm.ManageConnection()
+
 	for {
 		select {
+		// Slack RTM
+		case msg := <-rtm.IncomingEvents:
+			switch ev := msg.Data.(type) {
+			case *slack.MessageEvent:
+				// TODO: このbotのmention名(@U4H5Q3GA1)をAPIで取得したい
+				// res, err := slackClient.GetUserIdentity()
+				// if err != nil {
+				// 	log.Print("slackClient.GetUserIdentity() failed: ", err)
+				// 	return 1
+				// }
+				//
+				// -> slackClient.GetUserIdentity() failed: missing_scope
+				if strings.Contains(ev.Text, "@U4H5Q3GA1") {
+					reply := getRandomReply()
+					rtm.SendMessage(rtm.NewOutgoingMessage(reply, ev.Channel))
+				}
+			case *slack.InvalidAuthEvent:
+				log.Print("Invalid credentials")
+				return 1
+			}
+
+		// スクレイピング
 		case latestStatus := <-metroCh:
 			s, err := redis.String(c.Do("GET", latestStatus.dateTime))
 			// 最新の運行情報が既に保存済みか
