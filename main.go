@@ -90,7 +90,7 @@ func run(slackClient *slack.Client) int {
 	}
 }
 
-func main() {
+func init() {
 	slackClient := slack.New(getSlackAPIToken())
 	os.Exit(run(slackClient))
 }

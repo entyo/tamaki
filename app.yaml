@@ -1,0 +1,11 @@
+module: default
+runtime: go
+api_version: go1
+
+handlers:
+- url: /.*
+  script: _go_app
+
+env_variables:
+  SLACK_API_TOKEN: ''
+  REDIS_URL: ''
