@@ -30,7 +30,7 @@ func run(slackClient *slack.Client) int {
 		log.Println("FLUSHALL: ", reply)
 	}
 
-	// リテラルなデータ([]RailwayLine)をsomeTravelInfo([]MetroTravelInfo)にセットする
+	// stubをsomeTravelInfo([]MetroTravelInfo)にセットする
 	var someTravelInfo []MetroTravelInfo
 	metroData := makeMetroData()
 	for _, railwayLine := range metroData {
@@ -49,19 +49,12 @@ func run(slackClient *slack.Client) int {
 
 	for {
 		select {
-		// Slack RTM
+		// Slack RTM API
 		case msg := <-rtm.IncomingEvents:
 			switch ev := msg.Data.(type) {
+
 			case *slack.MessageEvent:
-				// TODO: このbotのmention名(@U4H5Q3GA1)をAPIで取得したい
-				// res, err := slackClient.GetUserIdentity()
-				// if err != nil {
-				// 	log.Print("slackClient.GetUserIdentity() failed: ", err)
-				// 	return 1
-				// }
-				//
-				// -> slackClient.GetUserIdentity() failed: missing_scope
-				if strings.Contains(ev.Text, "@U4H5Q3GA1") {
+				if strings.Contains(ev.Text, getSlackBotID()) {
 					reply := getRandomReply()
 					rtm.SendMessage(rtm.NewOutgoingMessage(reply, ev.Channel))
 				}
