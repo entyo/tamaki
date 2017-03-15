@@ -9,13 +9,6 @@ import (
 	"github.com/nlopes/slack"
 )
 
-func getSlackBotID() string {
-	if os.Getenv("SLACK_BOT_ID") == "" {
-		log.Fatalln("SLACK_BOT_ID is not set!")
-	}
-	return os.Getenv("SLACK_BOT_ID")
-}
-
 func getRandomReply() string {
 	switch rand.Intn(6) {
 	case 0:

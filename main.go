@@ -54,7 +54,7 @@ func run(slackClient *slack.Client) int {
 			switch ev := msg.Data.(type) {
 
 			case *slack.MessageEvent:
-				if strings.Contains(ev.Text, getSlackBotID()) {
+				if strings.Contains(ev.Text, "@"+ev.BotID) {
 					reply := getRandomReply()
 					rtm.SendMessage(rtm.NewOutgoingMessage(reply, ev.Channel))
 				}
