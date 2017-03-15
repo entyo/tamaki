@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 
@@ -37,6 +38,7 @@ func postMessage(client *slack.Client, channelID string, pretext string, text st
 	params.Attachments = []slack.Attachment{attachment}
 	channelID, timestamp, err := client.PostMessage(channelID, "", params)
 	if err != nil {
+		log.Println("Error in postMessage()", err)
 		return err
 	}
 	fmt.Printf("Message successfully sent to channel %s at %s\n", channelID, timestamp)
@@ -49,16 +51,21 @@ func getSlackAPIToken() string {
 
 // botの所属しているchannel全てにmessageを送る
 func postMessageToAll(client *slack.Client, pretext string, text string, color string) (err error) {
-	groups, err := client.GetGroups(false)
+	channels, err := client.GetChannels(false)
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		log.Println("Error in postMessageToAll(): ", err)
 		return err
 	}
-	for _, group := range groups {
-		err := postMessage(client, group.ID, pretext, text, color)
-		if err != nil {
-			return err
+
+	for _, channel := range channels {
+		if channel.IsMember {
+			err := postMessage(client, channel.ID, pretext, text, color)
+			if err != nil {
+				log.Println("Error in postMessage(): ", err)
+				return err
+			}
 		}
 	}
+
 	return nil
 }
